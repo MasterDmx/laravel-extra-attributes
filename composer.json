@@ -1,0 +1,20 @@
+{
+    "name": "masterdmx/laravel-extra-attributes",
+    "description": "Add to laravel extra attributes",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sergey Krening",
+            "email": "masterdmx3325@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "MasterDmx\\LaravelExtraAttributes\\": "src/"
+        }
+    },
+    "version": "1.0.01",
+    "minimum-stability": "dev",
+    "require": {}
+}
