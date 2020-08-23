@@ -145,7 +145,7 @@ class AttributeCollection implements \Iterator
 
     public function getIds()
     {
-        return array_keys($this->items);
+        return array_keys($this->attributes);
     }
 
     /**
