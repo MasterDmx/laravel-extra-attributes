@@ -66,7 +66,7 @@ abstract class Attribute
      */
     public function hasPreset(string $id): bool
     {
-        return isset($this->presets) && (isset($this->presets[$id]) || in_array($id, $this->presets));
+        return !isset($this->presets) || (isset($this->presets[$id]) || in_array($id, $this->presets));
     }
 
     /**
@@ -82,6 +82,16 @@ abstract class Attribute
         }
 
         return $this;
+    }
+
+    /**
+     * Проверка на пустоту
+     *
+     * @return bool
+     */
+    public function checkForEmpty(): bool
+    {
+        return true;
     }
 
     /**

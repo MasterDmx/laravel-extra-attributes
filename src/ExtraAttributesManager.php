@@ -54,20 +54,10 @@ class ExtraAttributesManager
      * @param bool $intersect Оставить только заполненные
      * @return \MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection
      */
-    public function get(string $alias, array $import = null, bool $intersect = true): AttributeCollection
+    public function get(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true): AttributeCollection
     {
-        return $this->getContext($alias)->createCollection($import, $intersect);
+        return $this->getContext($alias)->createCollection($import, $intersect, $skipEmpty);
     }
-
-    /**
-     * Импорт значений атрибутов из массива
-     *
-     * @return \MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection
-     */
-    // public function import(array $data, string $alias): AttributeCollection
-    // {
-    //     return $this->get($alias)->intersect(array_keys($data))->import($data);
-    // }
 
     /**
      * Сформировать пользовательский интерфейс
@@ -81,16 +71,24 @@ class ExtraAttributesManager
         return new View\Handler($this->getContext($alias));
     }
 
+    public function clearInputData(array $data)
+    {
+        $new = [];
 
+        foreach ($data as $key => $elem) {
+            if (is_array($elem)) {
+                $elem = $this->clearInputData($elem);
+            }
 
+            if (empty($elem) && $elem != '0') {
+                continue;
+            }
 
+            $new[$key] = $elem;
+        }
 
-
-
-
-
-
-
+        return $new;
+    }
 
     /**
      * Экспорт значений атрибутов в массив
@@ -113,7 +111,5 @@ class ExtraAttributesManager
     {
         return $this->contextManager->find($contextAlias)->getAttributes()->clone()->intersect(array_keys($data))->import($data);
     }
-
-
 
 }

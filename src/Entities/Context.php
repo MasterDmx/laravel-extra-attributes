@@ -34,12 +34,12 @@ abstract class Context
 
         $instances = [];
 
-        foreach ($attributes as $attribute) {
+        foreach ($attributes as $id => $attribute) {
             if (empty($attribute['entity']) || !class_exists($attribute['entity'])) {
                 throw new InvalidArgumentException('Undefined entity ' . $attribute['type'] ?? 'NULL' . ' in ' . $attribute['id'] . ' attribute');
             }
 
-            $instance = new $attribute['entity']($attribute);
+            $instance = new $attribute['entity']($attribute + ['id' => $id]);
             $instances[$instance->id] = $instance;
         }
 
@@ -53,16 +53,20 @@ abstract class Context
      * @param bool $intersect Оставить только заполненные
      * @return AttributeCollection
      */
-    public function createCollection(array $import = null, bool $intersect = true): AttributeCollection
+    public function createCollection(array $import = null, bool $intersect = true, bool $skipEmptiness = true): AttributeCollection
     {
         $collection = $this->getAttributes()->clone();
 
         if (!empty($import)) {
             if ($intersect) {
-                $collection->intersect(array_keys($import));
+                $collection = $collection->intersect(array_keys($import));
             }
 
             $collection->import($import);
+
+            if ($skipEmptiness) {
+                $collection = $collection->removeEmptyElements();
+            }
         }
 
         return $collection;

@@ -9,7 +9,17 @@ use MasterDmx\LaravelExtraAttributes\ExtraAttributesManager;
 
 class ExtraAttributesCast implements CastsAttributes
 {
-    private $identityMap;
+    /**
+     * Менеджер
+     *
+     * @var ExtraAttributesManager
+     */
+    private $manager;
+
+    public function __construct()
+    {
+        $this->manager = app(ExtraAttributesManager::class);
+    }
 
     /**
      * Cast the given value.
@@ -22,7 +32,7 @@ class ExtraAttributesCast implements CastsAttributes
      */
     public function get($model, $key, $value, $attributes)
     {
-        return app(ExtraAttributesManager::class)->get(get_class($model), json_decode($value, true));
+        return $this->manager->get(get_class($model), json_decode($value, true), true, false);
     }
 
     /**
@@ -41,7 +51,7 @@ class ExtraAttributesCast implements CastsAttributes
         }
 
         if (is_array($value)) {
-            return json_encode(app(ExtraAttributesManager::class)->get(get_class($model), $value)->export());
+            return json_encode($this->manager->get(get_class($model), $this->manager->clearInputData($value), true, true)->export());
         }
 
         throw new ErrorException('Undefined value type');

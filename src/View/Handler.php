@@ -167,6 +167,8 @@ class Handler
         if (isset($this->options['preset'])) {
             $this->attributes = $this->attributes->applyPreset($this->options['preset']);
         }
+
+        // debug_print($this->attributes);
     }
 
     /**
