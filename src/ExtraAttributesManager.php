@@ -60,6 +60,24 @@ class ExtraAttributesManager
     }
 
     /**
+     * Получить аттрибуты контеска
+     *
+     * @param string $alias Алиас контекста
+     * @param array $import Данные для заполнения
+     * @param bool $intersect Оставить только заполненные
+     * @return \MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection
+     */
+    public function collection(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true): AttributeCollection
+    {
+        return $this->getContext($alias)->createCollection($import, $intersect, $skipEmpty);
+    }
+
+    public function bundle(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true)
+    {
+        # code...
+    }
+
+    /**
      * Сформировать пользовательский интерфейс
      *
      * @param string $alias Псевдоним контекста
@@ -99,17 +117,4 @@ class ExtraAttributesManager
     {
         return $collection->export();
     }
-
-    /**
-     * Смапить аттрибуты
-     *
-     * @param array $data
-     * @param string $context
-     * @return array
-     */
-    public function map(array $data, string $contextAlias)
-    {
-        return $this->contextManager->find($contextAlias)->getAttributes()->clone()->intersect(array_keys($data))->import($data);
-    }
-
 }

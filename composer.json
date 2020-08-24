@@ -14,7 +14,7 @@
             "MasterDmx\\LaravelExtraAttributes\\": "src/"
         }
     },
-    "version": "1.0.01",
+    "version": "1.0.02",
     "minimum-stability": "dev",
     "require": {}
 }
