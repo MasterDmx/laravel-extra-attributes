@@ -36,7 +36,7 @@ abstract class Context
 
         foreach ($attributes as $id => $attribute) {
             if (empty($attribute['entity']) || !class_exists($attribute['entity'])) {
-                throw new InvalidArgumentException('Undefined entity ' . $attribute['type'] ?? 'NULL' . ' in ' . $attribute['id'] . ' attribute');
+                throw new InvalidArgumentException('Undefined entity ' . $attribute['entity'] ?? 'NULL' . ' in ' . $attribute['id'] . ' attribute');
             }
 
             $instance = new $attribute['entity']($attribute + ['id' => $id]);
@@ -59,7 +59,7 @@ abstract class Context
 
         if (!empty($import)) {
             if ($intersect) {
-                $collection = $collection->intersect(array_keys($import));
+                $collection = $collection->intersectAttributes(array_keys($import));
             }
 
             $collection->import($import);

@@ -106,4 +106,15 @@ abstract class Attribute
             $this->name = $data['name'];
         }
     }
+
+    // --------------------------------------------------------
+    // Helpers
+    // --------------------------------------------------------
+
+    protected function clearExport(array $data)
+    {
+        return array_filter($data, function ($el) {
+            return isset($el);
+        });
+    }
 }

@@ -2,32 +2,10 @@
 
 namespace MasterDmx\LaravelExtraAttributes\Entities;
 
-/**
- * Коллекция атрибутов
- */
-// class AttributeCollection extends ObjectCollection
-class AttributeCollection implements \Iterator
+use Illuminate\Support\Collection;
+
+class AttributeCollection extends Collection
 {
-    /**
-     * Аттрибуты
-     */
-    protected $attributes;
-
-    /**
-     * Пресет
-     */
-    private $preset;
-
-    public static function init(array $attributes = []): self
-    {
-        return new static($attributes);
-    }
-
-    public function __construct(array $attributes = [])
-    {
-        $this->attributes = $attributes;
-    }
-
     /**
      * Возвращает оригинальный массив
      *
@@ -35,7 +13,12 @@ class AttributeCollection implements \Iterator
      */
     public function all(): array
     {
-        return $this->attributes;
+        return $this->items;
+    }
+
+    public function toArray()
+    {
+        return $this->export();
     }
 
     /**
@@ -46,7 +29,7 @@ class AttributeCollection implements \Iterator
      */
     public function has($key): bool
     {
-        return isset($this->attributes[$key]);
+        return isset($this->items[$key]);
     }
 
     /**
@@ -58,7 +41,7 @@ class AttributeCollection implements \Iterator
      */
     public function get($key, $default = null)
     {
-        return $this->attributes[$key] ?? $default;
+        return $this->items[$key] ?? $default;
     }
 
     /**
@@ -145,7 +128,7 @@ class AttributeCollection implements \Iterator
 
     public function getIds()
     {
-        return array_keys($this->attributes);
+        return array_keys($this->items);
     }
 
     /**
@@ -171,7 +154,7 @@ class AttributeCollection implements \Iterator
 
     public function isEmpty(): bool
     {
-        return empty($this->attributes);
+        return empty($this->items);
     }
 
     /**
@@ -184,12 +167,6 @@ class AttributeCollection implements \Iterator
         return (clone $this)->filter(function ($el) {
             return $el->checkForEmpty();
         });
-    }
-
-    public function filter(callable $callback) : self
-    {
-        $this->attributes = array_filter($this->attributes, $callback);
-        return $this;
     }
 
     public function each(callable $callback)
@@ -209,7 +186,7 @@ class AttributeCollection implements \Iterator
      * @param array $ids
      * @return self
      */
-    public function intersect(array $keys)
+    public function intersectAttributes(array $keys)
     {
         $items = [];
 
@@ -222,44 +199,4 @@ class AttributeCollection implements \Iterator
         return new static($items);
     }
 
-
-    // --------------------------------------------------------
-    // Iterator
-    // --------------------------------------------------------
-
-    public function first()
-    {
-        return reset($this->attributes);
-    }
-
-    public function last()
-    {
-        return end($this->attributes);
-    }
-
-    public function key()
-    {
-        return key($this->all());
-    }
-
-    public function next()
-    {
-        return next($this->attributes);
-    }
-
-    public function current()
-    {
-        return current($this->attributes);
-    }
-
-    public function valid()
-    {
-        $key = key($this->attributes);
-        return $key !== null && $key !== false;
-    }
-
-    public function rewind()
-    {
-        reset($this->attributes);
-    }
 }
