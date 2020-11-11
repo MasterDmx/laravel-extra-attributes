@@ -2,9 +2,9 @@
 
 namespace MasterDmx\LaravelExtraAttributes\Entities;
 
-use Illuminate\Support\Collection;
+use Illuminate\Support\Collection as BaseCollection;
 
-class AttributeCollection extends Collection
+class Collection extends BaseCollection
 {
     /**
      * Возвращает оригинальный массив
@@ -41,7 +41,13 @@ class AttributeCollection extends Collection
      */
     public function get($key, $default = null)
     {
-        return $this->items[$key] ?? $default;
+        return $this->items[$key] ?? (isset($default) ? $default : $this->newStub());
+    }
+
+    private function newStub()
+    {
+        $class = config('attrubutes.stub', \MasterDmx\LaravelExtraAttributes\Entities\AttributeStub::class);
+        return new $class();
     }
 
     /**
@@ -199,4 +205,33 @@ class AttributeCollection extends Collection
         return new static($items);
     }
 
+    /**
+     * Сравнить
+     *
+     * @return self
+     */
+    public function clear(): self
+    {
+        $this->items = [];
+        return $this;
+    }
+
+    /**
+     * Сравнить с другой коллекцией
+     *
+     * @param [type] $attributes
+     * @return void
+     */
+    public function compare($attributes)
+    {
+        foreach ($attributes as $key => $item) {
+            if ($this->has($key)) {
+                if (!$this->get($key)->compare($item)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
 }

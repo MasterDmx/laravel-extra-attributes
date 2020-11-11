@@ -2,17 +2,12 @@
 
 namespace MasterDmx\LaravelExtraAttributes\View;
 
-use Illuminate\Support\Arr;
 use InvalidArgumentException;
 use MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection;
 use MasterDmx\LaravelExtraAttributes\Entities\Context;
 
 class Handler
 {
-    const DEFAULT_TEMPLATES_PREFIX = 'attribute.';
-    const DEFAULT_TEMPLATES_MAIN = 'layout.main';
-    const DEFAULT_TEMPLATES_GROUP = 'layout.group';
-    const DEFAULT_BANDLE_BLOCKS_COUNT = 4;
     const OTHER_GROUP_ID = 'undefined';
     const OTHER_GROUP_NAME = 'Undefined';
 
@@ -33,16 +28,9 @@ class Handler
     /**
      * Параметры
      *
-     * @var array|null
+     * @var array
      */
     protected $options;
-
-    /**
-     * Временные данные
-     *
-     * @var array|null
-     */
-    protected $temp;
 
     /**
      * Аттрибуты
@@ -79,57 +67,20 @@ class Handler
      */
     public function show()
     {
-        $config = $this->temp['config'] = $this->context->views();
+        // Обработка коллекции атрибутов
+        $this->processAttributes();
 
-        if ($config['bundle'] ?? false) {
-            debug_print('Режим бандла');
-        } else {
-            debug_print('Режим обычной коллекции');
-        }
+        // Обработка конфига
+        $this->processConfig();
 
-        // Шаблоны
-        $this->config['templates']['main'] = $this->getConfigItem('templates.main', static::DEFAULT_TEMPLATES_MAIN);
-        $this->config['templates']['group'] = $this->getConfigItem('templates.group', static::DEFAULT_TEMPLATES_GROUP);
-        $this->config['templates']['entities'] = $this->padConfigItem('templates.entities', []);
+        $method = $this->config['showMethod'];
+        // $method = 'showTemplate';
 
-        // Группы
-        foreach ($this->padConfigItem('groups', []) + [static::OTHER_GROUP_ID => static::OTHER_GROUP_NAME] as $key => $value) {
-            $this->config['groups'][$key] = ['name' => $value];
-        }
-
-        // Обработка аттрибутов из конфига
-        foreach ($this->getConfigItem('attributes', []) as $key => $value) {
-            $id = is_numeric($key) ? $value : $key;
-
-            if (!$this->context->getAttributes()->has($id)) {
-                continue;
-            }
-
-            $this->config['attributes'][] = $id;
-
-            if (is_numeric($key)) {
-                $this->config['groups'][static::OTHER_GROUP_ID]['ids'][] = $value;
-            } elseif (is_string($value)) {
-                $this->config['groups'][$value]['ids'][] = $key;
-            } elseif (is_array($value)) {
-                $group = $value['group'] ?? static::OTHER_GROUP_ID;
-                $this->config['groups'][$group]['ids'][] = $key;
-            }
-        }
-
-        // Обработка оставшихся полей в контексте
-        foreach ($this->context->getAttributes()->getIds() ?? [] as $id) {
-            if (in_array($id, $this->config['attributes'])) {
-                continue;
-            }
-
-            $this->config['attributes'][] = $id;
-            $this->config['groups'][static::OTHER_GROUP_ID]['ids'][] = $id;
-        }
-
-        return view($this->config['templates']['main'], [
+        return view('attribute.filters.main', [
             'builder' => $this
         ]);
+
+        return $this->$method();
     }
 
     /**
@@ -207,55 +158,98 @@ class Handler
     }
 
     // -----------------------------------------------------------
-    // Helpers
+    // Processing
     // -----------------------------------------------------------
 
     /**
-     * Получить параметр конфига с учетом приоритетности
+     * Обработка коллекции атрибутов
+     *
+     * @return void
      */
-    private function getConfigItem(string $alias, $default = null)
+    public function processAttributes(): void
     {
-        $result = config('attrubutes.view.' . $alias, $default);
+        $this->attributes = $this->context->getAttributes()->clone();
 
-        if (Arr::has($this->temp['config'], $alias)) {
-            $result = Arr::get($this->temp['config'], $alias);
+        if (isset($this->fillAttributes)) {
+            $this->attributes = $this->attributes->replaceAttributesFrom($this->fillAttributes);
         }
 
-        if (Arr::has($this->temp['config'], 'presets.' . $this->options['preset'] . '.' . $alias)) {
-            $result = Arr::get($this->temp['config'], 'presets.' . $this->options['preset'] . '.' . $alias);
+        if (isset($this->options['preset'])) {
+            $this->attributes = $this->attributes->applyPreset($this->options['preset']);
         }
 
-        return $result;
+        // debug_print($this->attributes);
     }
 
     /**
-     * Дополнить параметр конфига с учетом приоритетности (null значение удалит параметр)
+     * Обработка конфигураций контекста
+     *
+     * @return void
      */
-    private function padConfigItem(string $alias, $default = null)
+    public function processConfig(): void
     {
-        $result = config('attrubutes.view.' . $alias, $default);
+        $config = $this->context->views();
+        $replacedConfig = $config['preset/' . ($this->options['preset'] ?? '')] ?? [];
 
-        if (Arr::has($this->temp['config'], $alias)) {
-            foreach (Arr::get($this->temp['config'], $alias) as $key => $value) {
-                if (!isset($value) && isset($result[$key])) {
-                    unset($result[$key]);
-                }
+        // Шаблоны
+        $this->config['templates'] = $config['templates'] ?? [];
 
-                $result[$key] = $value;
+        foreach ($replacedConfig['templates'] ?? [] as $key => $value) {
+            $this->config['templates'][$key] = $value;
+        }
+
+        // Общие группы
+        foreach ($config['groups'] ?? [] as $id => $name) {
+            $this->config['groups'][$id] = ['name' => $name];
+        }
+
+        // Группы пресета
+        foreach ($replacedConfig['groups'] ?? [] as $id => $name) {
+            $this->config['groups'][$id] = ['name' => $name];
+        }
+
+        // Группа по умолчанию
+        $this->config['groups'][static::OTHER_GROUP_ID] = ['name' => static::OTHER_GROUP_NAME];
+
+        // Отдельный шаблон группы
+        $this->config['use_group_template'] = $replacedConfig['use_group_template'] ?? $config['use_group_template'] ?? null;
+
+        // Метод показа
+        $this->config['show'] = $replacedConfig['show'] ?? $config['show'] ?? 'list';
+        $this->config['showMethod'] = 'show' . ucfirst($this->config['show']);
+
+        // Контент
+        $this->config['attributes'] = [];
+
+        // Обработка аттрибутов из конфига
+        foreach ($replacedConfig['attributes'] ?? $config['attributes'] ?? [] as $key => $value) {
+            $id = is_numeric($key) ? $value : $key;
+
+            if (!$this->attributes->has($id)) {
+                continue;
+            }
+
+            $this->config['attributes'][] = $id;
+
+            if (is_numeric($key)) {
+                $this->config['groups'][static::OTHER_GROUP_ID]['ids'][] = $value;
+            } elseif (is_string($value)) {
+                $this->config['groups'][$value]['ids'][] = $key;
+            } elseif (is_array($value)) {
+                $group = $value['group'] ?? static::OTHER_GROUP_ID;
+                $this->config['groups'][$group]['ids'][] = $key;
             }
         }
 
-        if (Arr::has($this->temp['config'], 'presets.' . $this->options['preset'] . '.' . $alias)) {
-            foreach (Arr::get($this->temp['config'], 'presets.' . $this->options['preset'] . '.' . $alias) as $key => $value) {
-                if (!isset($value) && isset($result[$key])) {
-                    unset($result[$key]);
-                }
-
-                $result[$key] = $value;
+        // Обработка оставшихся полей в контексте
+        foreach ($this->attributes->getIds() ?? [] as $id) {
+            if (in_array($id, $this->config['attributes'])) {
+                continue;
             }
-        }
 
-        return $result;
+            $this->config['attributes'][] = $id;
+            $this->config['groups'][static::OTHER_GROUP_ID]['ids'][] = $id;
+        }
     }
 
     // -----------------------------------------------------------
@@ -292,11 +286,10 @@ class Handler
      * @param string $name Название пресета
      * @return self
      */
-    public function bundle($bundle): self
+    public function bundle($content): self
     {
         debug_print('Есть бандл на вход');
-
-        $this->temp['bundle'] = $bundle;
+        // $this->options['ui'] = $name;
         return $this;
     }
 

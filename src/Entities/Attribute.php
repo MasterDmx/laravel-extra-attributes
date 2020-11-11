@@ -2,6 +2,8 @@
 
 namespace MasterDmx\LaravelExtraAttributes\Entities;
 
+use PHPUnit\Framework\Constraint\Attribute as ConstraintAttribute;
+
 abstract class Attribute
 {
     /**
@@ -17,6 +19,13 @@ abstract class Attribute
      * @var string
      */
     public $name;
+
+    /**
+     * Идентификатор сущности
+     *
+     * @var string
+     */
+    public $entity;
 
     /**
      * Пресеты
@@ -40,6 +49,7 @@ abstract class Attribute
     {
         $this->id = $properties['id'];
         $this->name = $properties['name'];
+        $this->entity = $properties['entity'];
         $this->presets = $properties['presets'] ?? null;
     }
 
@@ -95,6 +105,16 @@ abstract class Attribute
     }
 
     /**
+     * Сравнение с другим полем
+     *
+     * @return bool
+     */
+    public function compare($attribute): bool
+    {
+        return true;
+    }
+
+    /**
      * Изменить данные по пресету
      *
      * @param $data
@@ -107,14 +127,5 @@ abstract class Attribute
         }
     }
 
-    // --------------------------------------------------------
-    // Helpers
-    // --------------------------------------------------------
 
-    protected function clearExport(array $data)
-    {
-        return array_filter($data, function ($el) {
-            return isset($el);
-        });
-    }
 }

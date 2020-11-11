@@ -3,15 +3,16 @@
 namespace MasterDmx\LaravelExtraAttributes\View;
 
 use Illuminate\Support\Arr;
-use InvalidArgumentException;
-use MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection;
+use MasterDmx\LaravelExtraAttributes\Entities\Bundle;
+use MasterDmx\LaravelExtraAttributes\Entities\Collection;
 use MasterDmx\LaravelExtraAttributes\Entities\Context;
 
-class Handler
+class Initializer
 {
+    const DEFAULT_NAME = 'extra_attributes';
     const DEFAULT_TEMPLATES_PREFIX = 'attribute.';
-    const DEFAULT_TEMPLATES_MAIN = 'layout.main';
-    const DEFAULT_TEMPLATES_GROUP = 'layout.group';
+    const DEFAULT_TEMPLATES_UI = 'layout.main';
+    const DEFAULT_TEMPLATES_GROUP = null;
     const DEFAULT_BANDLE_BLOCKS_COUNT = 4;
     const OTHER_GROUP_ID = 'undefined';
     const OTHER_GROUP_NAME = 'Undefined';
@@ -24,11 +25,18 @@ class Handler
     protected $context;
 
     /**
-     * Коллекция атрибутов для заполнения
+     * Коллекция заполненных атрибутов
      *
-     * @var null|\MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection
+     * @var null|\MasterDmx\LaravelExtraAttributes\Entities\Collection
      */
-    protected $fillAttributes;
+    protected $filledCollection;
+
+    /**
+     * Бандл заполненных аттрибутов
+     *
+     * @var null|\MasterDmx\LaravelExtraAttributes\Entities\Bundle
+     */
+    protected $filledBundle;
 
     /**
      * Параметры
@@ -45,11 +53,11 @@ class Handler
     protected $temp;
 
     /**
-     * Аттрибуты
+     * Доп. данные, передающиеся в шаблоны
      *
-     * @var \MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection
+     * @var array
      */
-    protected $attributes;
+    private $extra = [];
 
     /**
      * Обработанный конфиг
@@ -61,11 +69,7 @@ class Handler
     public function __construct(Context $context)
     {
         $this->context = $context;
-    }
-
-    public function __toString()
-    {
-        return (string)$this->show();
+        $this->temp['config'] = $this->context->views();
     }
 
     // -----------------------------------------------------------
@@ -75,33 +79,38 @@ class Handler
     /**
      * Построить View
      *
-     * @return string
+     * @return Render|BundleRender
      */
-    public function show()
+    public function init()
     {
-        $config = $this->temp['config'] = $this->context->views();
-
-        if ($config['bundle'] ?? false) {
-            debug_print('Режим бандла');
-        } else {
-            debug_print('Режим обычной коллекции');
-        }
+        // Тут необходимо клонировать текущий объект
 
         // Шаблоны
-        $this->config['templates']['main'] = $this->getConfigItem('templates.main', static::DEFAULT_TEMPLATES_MAIN);
+        $this->config['name'] = config('attrubutes.name', static::DEFAULT_NAME);
+        $this->config['templates']['ui'] = $this->getConfigItem('templates.ui', static::DEFAULT_TEMPLATES_UI);
         $this->config['templates']['group'] = $this->getConfigItem('templates.group', static::DEFAULT_TEMPLATES_GROUP);
+        $this->config['templates']['attribute'] = $this->getConfigItem('templates.attribute', null);
         $this->config['templates']['entities'] = $this->padConfigItem('templates.entities', []);
+        $this->config['bundle'] = $this->getConfigItem('bundle', false);
+
 
         // Группы
         foreach ($this->padConfigItem('groups', []) + [static::OTHER_GROUP_ID => static::OTHER_GROUP_NAME] as $key => $value) {
             $this->config['groups'][$key] = ['name' => $value];
         }
 
+        // Работа с аттрибутами контекста
+        $collection = $this->context->getAttributes();
+
+        if (isset($this->options['preset'])) {
+            $collection = $collection->applyPreset($this->options['preset']);
+        }
+
         // Обработка аттрибутов из конфига
         foreach ($this->getConfigItem('attributes', []) as $key => $value) {
             $id = is_numeric($key) ? $value : $key;
 
-            if (!$this->context->getAttributes()->has($id)) {
+            if (!$collection->has($id)) {
                 continue;
             }
 
@@ -118,7 +127,7 @@ class Handler
         }
 
         // Обработка оставшихся полей в контексте
-        foreach ($this->context->getAttributes()->getIds() ?? [] as $id) {
+        foreach ($collection->getIds() ?? [] as $id) {
             if (in_array($id, $this->config['attributes'])) {
                 continue;
             }
@@ -127,83 +136,32 @@ class Handler
             $this->config['groups'][static::OTHER_GROUP_ID]['ids'][] = $id;
         }
 
-        return view($this->config['templates']['main'], [
-            'builder' => $this
-        ]);
-    }
-
-    /**
-     * Показ списка
-     *
-     * @return string
-     */
-    public function showList(): string
-    {
-        $list = [];
-
-        foreach ($this->config['attributes'] as $id) {
-            $list[] = $this->renderAttributeById($id);
+        if ($this->config['bundle']) {
+            return new BundleRender($this->config, $collection, $this->filledBundle, $this->extra);
         }
 
-        return $list ? implode('', $list) : '';
+        return new Render($this->config, $collection, $this->filledCollection, $this->extra);
     }
 
-    /**
-     * Показ списка по группам
-     *
-     * @return string
-     */
-    public function showListByGroups(): string
+    public function renderAttribute($id, array $replaceOptions = [])
     {
-        $content = [];
+        $config['name'] = config('attrubutes.name', static::DEFAULT_NAME);
+        $config['templates']['entities'] = $this->padConfigItem('templates.entities', []);
+        $config['templates']['attribute'] = $this->getConfigItem('templates.attribute');
 
-        foreach ($this->config['groups'] as $groupId => $group) {
-            if (empty($group['ids'])) {
-                continue;
-            }
-
-            $list = [];
-
-            foreach ($group['ids'] as $id) {
-                $list[] = $this->renderAttributeById($id);
-            }
-
-            if ($this->config['use_group_template']) {
-                $content[] = view($this->config['use_group_template'], [
-                    'name' => $group['name'] ?? 'Без имени',
-                    'content' => implode('', $list)
-                ]);
-            } else {
-                foreach ($list as $item) {
-                    $content[] = $item;
-                }
+        if (!empty($replaceOptions)) {
+            foreach ($replaceOptions as $key => $value) {
+                $config = $this->replaceParam($config, $key, $value);
             }
         }
 
-        return $content ? implode('', $content) : '';
-    }
+        $collection = $this->context->getAttributes()->only($id);
 
-    public function showTemplate()
-    {
-        return view('attribute.filters.main');
-    }
+        if (isset($this->options['preset'])) {
+            $collection = $collection->applyPreset($this->options['preset']);
+        }
 
-    /**
-     * Отрисовать аттрибут по ID
-     *
-     * @param string|int|float $id
-     * @return string
-     */
-    public function renderAttributeById($id): string
-    {
-        $attribute = $this->attributes->get($id);
-        $class = get_class($attribute);
-        $template = $this->config['templates'][$class];
-
-        return view($template, [
-            'attribute' => $attribute,
-            'class' => $class
-        ]);
+        return (new Render($config, $collection, null, $this->extra))->showAttributeById($id);
     }
 
     // -----------------------------------------------------------
@@ -258,6 +216,12 @@ class Handler
         return $result;
     }
 
+    private function replaceParam(array $data, $alias, $value = null)
+    {
+        Arr::set($data, $alias, $value);
+        return $data;
+    }
+
     // -----------------------------------------------------------
     // Options
     // -----------------------------------------------------------
@@ -268,9 +232,12 @@ class Handler
      * @param string $name Название пресета
      * @return self
      */
-    public function preset(string $name): self
+    public function preset(string $name = null): self
     {
-        $this->options['preset'] = $name;
+        if (!empty($name)) {
+            $this->options['preset'] = $name;
+        }
+
         return $this;
     }
 
@@ -280,23 +247,18 @@ class Handler
      * @param string $name Название пресета
      * @return self
      */
-    public function ui(string $name): self
+    public function bundle($data): self
     {
-        $this->options['ui'] = $name;
-        return $this;
-    }
+        if (isset($data)) {
+            if (is_array($data)) {
+                $data = $this->context->createBundle($data);
+            }
 
-    /**
-     * Пользовательский интерфейс
-     *
-     * @param string $name Название пресета
-     * @return self
-     */
-    public function bundle($bundle): self
-    {
-        debug_print('Есть бандл на вход');
+            if (is_a($data, Bundle::class)) {
+                $this->filledBundle = $data;
+            }
+        }
 
-        $this->temp['bundle'] = $bundle;
         return $this;
     }
 
@@ -304,22 +266,44 @@ class Handler
      * Заполнить данными
      *
      * @param array|object $data
-     * @param boolean $intersect
      * @return self
      */
-    public function fill($data, bool $intersect = false): self
+    public function collection($data): self
     {
         if (isset($data)) {
             if (is_array($data)) {
                 $data = $this->context->createCollection($data);
             }
 
-            if (is_a($data, AttributeCollection::class)) {
-                $this->fillAttributes = $data;
+            if (is_a($data, Collection::class)) {
+                $this->filledCollection = $data;
             }
         }
 
         return $this;
     }
 
+    /**
+     * Установить доп. данные
+     *
+     * @param string|int|array $alias
+     * @param mixed $value
+     * @return self
+     */
+    public function extra($alias = null, $value = null): self
+    {
+        if (!empty($alias)) {
+            if (is_array($alias)) {
+                foreach ($alias as $key => $value) {
+                    $this->extra($key, $value);
+                }
+            } elseif (!isset($value) && isset($this->extra[$alias])) {
+                unset($this->extra[$alias]);
+            } else {
+                $this->extra[$alias] = $value;
+            }
+        }
+
+        return $this;
+    }
 }

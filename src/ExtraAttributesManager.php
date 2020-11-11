@@ -2,33 +2,44 @@
 
 namespace MasterDmx\LaravelExtraAttributes;
 
-use Psr\Container\ContainerInterface;
 use Illuminate\Container\EntryNotFoundException;
-use MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection;
+use Illuminate\Contracts\Foundation\Application;
+use MasterDmx\LaravelExtraAttributes\Entities\Collection;
+use MasterDmx\LaravelExtraAttributes\Entities\Bundle;
 use MasterDmx\LaravelExtraAttributes\Entities\Context;
+use MasterDmx\LaravelExtraAttributes\View\Initializer;
 
 class ExtraAttributesManager
 {
     /**
-     * Преффикс для сохранения классов в контейнер
+     * Контексты
+     *
+     * @var array
      */
-    const CONTAINER_ALIAS_PREFFIX = 'EA_';
+    private $contexts = [];
 
     /**
      * IoC
      *
-     * @var \Psr\Container\ContainerInterface
+     * @var \Illuminate\Contracts\Foundation\Application
      */
-    private $container;
+    private $app;
 
-    public static function getContextAliasForContainer(string $alias): string
+    public function __construct(Application $app, array $contexts = [])
     {
-        return static::CONTAINER_ALIAS_PREFFIX . $alias;
+        $this->app = $app;
+        $this->defineContexts($contexts);
     }
 
-    public function __construct(ContainerInterface $container)
+    /**
+     * Получить название класса контекста по алиасу
+     *
+     * @param string $alias
+     * @return string|null
+     */
+    public function getConxtextClass(string $alias): ?string
     {
-        $this->container = $container;
+        return $this->contexts[$alias] ?? null;
     }
 
     /**
@@ -37,26 +48,29 @@ class ExtraAttributesManager
      * @param string $alias
      * @return \MasterDmx\LaravelExtraAttributes\Entities\Context
      */
-    public function getContext(string $alias): Context
+    public function getContext(string $class): Context
     {
         try {
-            return $this->container->get(static::getContextAliasForContainer($alias));
+            return $this->app->get($class);
         } catch (EntryNotFoundException $th) {
-            throw new EntryNotFoundException ('Context ' . $alias . ' not defined');
+            throw new EntryNotFoundException ('Context ' . $class . ' not defined');
         }
     }
 
     /**
-     * Получить аттрибуты контеска
+     * Получить инстанс контекста по его алиасу
      *
-     * @param string $alias Алиас контекста
-     * @param array $import Данные для заполнения
-     * @param bool $intersect Оставить только заполненные
-     * @return \MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection
+     * @param string $alias
+     * @return \MasterDmx\LaravelExtraAttributes\Entities\Context
      */
-    public function get(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true): AttributeCollection
+    public function getContextByAlias(string $alias): Context
     {
-        return $this->getContext($alias)->createCollection($import, $intersect, $skipEmpty);
+        return $this->getContext($this->getConxtextClass($alias));
+    }
+
+    public function addAttribute(string $alias, string $key, $value)
+    {
+        return $this->get($alias, [$key => $value], true);
     }
 
     /**
@@ -65,16 +79,24 @@ class ExtraAttributesManager
      * @param string $alias Алиас контекста
      * @param array $import Данные для заполнения
      * @param bool $intersect Оставить только заполненные
-     * @return \MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection
+     * @return \MasterDmx\LaravelExtraAttributes\Entities\Collection
      */
-    public function collection(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true): AttributeCollection
+    public function collection(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true): Collection
     {
-        return $this->getContext($alias)->createCollection($import, $intersect, $skipEmpty);
+        return $this->getContextByAlias($alias)->createCollection($import, $intersect, $skipEmpty);
     }
 
-    public function bundle(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true)
+    /**
+     * Получить аттрибуты бандла
+     *
+     * @param string $alias Алиас контекста
+     * @param array $import Данные для заполнения
+     * @param bool $intersect Оставить только заполненные
+     * @return \MasterDmx\LaravelExtraAttributes\Entities\Bundle
+     */
+    public function bundle(string $alias, array $import = null, bool $intersect = true, bool $skipEmpty = true): Bundle
     {
-        # code...
+        return $this->getContextByAlias($alias)->createBundle($import, $intersect, $skipEmpty);
     }
 
     /**
@@ -82,11 +104,11 @@ class ExtraAttributesManager
      *
      * @param string $alias Псевдоним контекста
      * @param mixed $fill Коллекция атрибутов для заполнения
-     * @return \MasterDmx\LaravelExtraAttributes\View\Handler
+     * @return \MasterDmx\LaravelExtraAttributes\View\Initializer
      */
-    public function view(string $alias)
+    public function view(string $alias): Initializer
     {
-        return new View\Handler($this->getContext($alias));
+        return new Initializer($this->getContextByAlias($alias));
     }
 
     public function clearInputData(array $data)
@@ -113,8 +135,40 @@ class ExtraAttributesManager
      *
      * @return void
      */
-    public function export(AttributeCollection $collection)
+    public function export(Collection $collection)
     {
         return $collection->export();
+    }
+
+    // -------------------------------------------------------------
+    // INIT
+    // -------------------------------------------------------------
+
+    /**
+     * Установить контекст
+     *
+     * @param string $alias
+     * @param string $class
+     * @return self
+     */
+    public function defineContext(string $alias, string $class): self
+    {
+        $this->contexts[$alias] = $class;
+        $this->app->singleton($class);
+
+        return $this;
+    }
+
+    /**
+     * Установить несколько контекстов
+     *
+     * @param array $list
+     * @return void
+     */
+    public function defineContexts(array $list = []): void
+    {
+        foreach ($list as $alias => $class) {
+            $this->defineContext($alias, $class);
+        }
     }
 }
