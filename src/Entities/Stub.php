@@ -9,7 +9,7 @@ namespace MasterDmx\LaravelExtraAttributes\Entities;
  * @author Sergey Krening
  * @version 1.0 (2020-04-21)
  */
-class AttributeStub
+class Stub
 {
     private $returnThisMethods = ['setPattern'];
 

@@ -70,6 +70,8 @@ class Initializer
     {
         $this->context = $context;
         $this->temp['config'] = $this->context->views();
+
+        $this->extra('context', $this->context->alias);
     }
 
     // -----------------------------------------------------------
@@ -83,8 +85,6 @@ class Initializer
      */
     public function init()
     {
-        // Тут необходимо клонировать текущий объект
-
         // Шаблоны
         $this->config['name'] = config('attrubutes.name', static::DEFAULT_NAME);
         $this->config['templates']['ui'] = $this->getConfigItem('templates.ui', static::DEFAULT_TEMPLATES_UI);
@@ -92,7 +92,6 @@ class Initializer
         $this->config['templates']['attribute'] = $this->getConfigItem('templates.attribute', null);
         $this->config['templates']['entities'] = $this->padConfigItem('templates.entities', []);
         $this->config['bundle'] = $this->getConfigItem('bundle', false);
-
 
         // Группы
         foreach ($this->padConfigItem('groups', []) + [static::OTHER_GROUP_ID => static::OTHER_GROUP_NAME] as $key => $value) {
@@ -236,6 +235,7 @@ class Initializer
     {
         if (!empty($name)) {
             $this->options['preset'] = $name;
+            $this->extra('preset', $name);
         }
 
         return $this;

@@ -2,10 +2,8 @@
 
 namespace MasterDmx\LaravelExtraAttributes\Entities;
 
-use ErrorException;
 use InvalidArgumentException;
 use MasterDmx\LaravelExtraAttributes\Entities\Collection;
-use MasterDmx\LaravelExtraAttributes\Entities\Type;
 use MasterDmx\LaravelExtraAttributes\ExtraAttributesManager;
 
 abstract class Context
@@ -31,8 +29,9 @@ abstract class Context
      */
     private $attributes;
 
-    public function __construct(string $alias)
+    public function __construct()
     {
+        $this->alias = app(ExtraAttributesManager::class)->getContextAliasByClass(get_called_class());
         $this->entities = config('attrubutes.entities');
 
         foreach ($this->entities() as $alias => $class) {

@@ -21,4 +21,20 @@ class Bundle extends LaravelCollection
     {
         return isset($this->items[$number]);
     }
+
+    /**
+     * Преобразовать коллекцию атрибутов в массив значений
+     *
+     * @return array
+     */
+    public function export(): array
+    {
+        $exported = [];
+
+        $this->each(function ($collection) use (&$exported) {
+            $exported[] = $collection->export();
+        });
+
+        return $exported;
+    }
 }

@@ -13,7 +13,7 @@ return [
     ],
 
     // Класс пустышка
-    'stub' => MasterDmx\LaravelExtraAttributes\Entities\AttributeStub::class,
+    'stub' => MasterDmx\LaravelExtraAttributes\Entities\Stub::class,
 
     // Ключ аттрибутов в БД
     'name' => 'extra_attributes',

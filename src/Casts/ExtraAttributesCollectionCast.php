@@ -4,34 +4,23 @@ namespace MasterDmx\LaravelExtraAttributes\Casts;
 
 use ErrorException;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
-use MasterDmx\LaravelExtraAttributes\Entities\AttributeCollection;
-use MasterDmx\LaravelExtraAttributes\ExtraAttributesManager;
+use MasterDmx\LaravelExtraAttributes\Entities\Collection;
 
-class ExtraAttributesCollectionCast implements CastsAttributes
+class ExtraAttributesCollectionCast extends ExtraAttributesCast implements CastsAttributes
 {
-    /**
-     * @var ExtraAttributesManager
-     */
-    private $manager;
-
-    public function __construct()
-    {
-        $this->manager = app(ExtraAttributesManager::class);
-    }
-
     public function get($model, $key, $value, $attributes)
     {
-        return $this->manager->get(get_class($model), json_decode($value, true), true, false);
+        return $this->manager->collection($this->getAliasByModel($model), json_decode($value, true), true, false);
     }
 
     public function set($model, $key, $value, $attributes)
     {
-        if (is_a($value, AttributeCollection::class)) {
+        if (is_a($value, Collection::class)) {
             return json_encode($value->export());
         }
 
         if (is_array($value)) {
-            return json_encode($this->manager->get(get_class($model), $this->manager->clearInputData($value), true, true)->export());
+            return json_encode($this->manager->collection($this->getAliasByModel($model), $this->manager->clearInputData($value), true, true)->export());
         }
 
         throw new ErrorException('Undefined value type');

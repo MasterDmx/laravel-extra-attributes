@@ -37,9 +37,13 @@ class ExtraAttributesManager
      * @param string $alias
      * @return string|null
      */
-    public function getConxtextClass(string $alias): ?string
+    public function getConxtextClass(string $alias): string
     {
-        return $this->contexts[$alias] ?? null;
+        if (!isset($this->contexts[$alias])) {
+            throw new EntryNotFoundException ('Context alias ' . $alias . ' not defined');
+        }
+
+        return $this->contexts[$alias];
     }
 
     /**
@@ -48,7 +52,7 @@ class ExtraAttributesManager
      * @param string $alias
      * @return \MasterDmx\LaravelExtraAttributes\Entities\Context
      */
-    public function getContext(string $class): Context
+    public function getContext(?string $class): Context
     {
         try {
             return $this->app->get($class);
@@ -70,7 +74,18 @@ class ExtraAttributesManager
 
     public function addAttribute(string $alias, string $key, $value)
     {
-        return $this->get($alias, [$key => $value], true);
+        return $this->collection($alias, [$key => $value], true);
+    }
+
+    /**
+     * Получить алиас контекста по названию класса
+     *
+     * @param string $class
+     * @return mixed
+     */
+    public function getContextAliasByClass(string $class, $default = null)
+    {
+        return array_flip($this->contexts)[$class] ?? $default;
     }
 
     /**
@@ -111,6 +126,20 @@ class ExtraAttributesManager
         return new Initializer($this->getContextByAlias($alias));
     }
 
+    /**
+     * Экспорт значений атрибутов в массив
+     *
+     * @return void
+     */
+    public function export(Collection $collection)
+    {
+        return $collection->export();
+    }
+
+    // -------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------
+
     public function clearInputData(array $data)
     {
         $new = [];
@@ -128,16 +157,6 @@ class ExtraAttributesManager
         }
 
         return $new;
-    }
-
-    /**
-     * Экспорт значений атрибутов в массив
-     *
-     * @return void
-     */
-    public function export(Collection $collection)
-    {
-        return $collection->export();
     }
 
     // -------------------------------------------------------------

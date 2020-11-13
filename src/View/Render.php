@@ -58,9 +58,6 @@ class Render
 
     public function __construct(array $config, Collection $collection = null, Collection $filled = null, array $extra = null, Initializer $initializer = null)
     {
-
-
-
         $this->config = $config;
         $this->collection = $collection;
         $this->filled = $filled;
@@ -70,6 +67,8 @@ class Render
         if (!isset($this->filled)) {
             $this->filled = new Collection();
         }
+
+        $this->extra('name', $config['name']);
     }
 
     public function __toString()
@@ -115,45 +114,33 @@ class Render
      *
      * @return string
      */
-    // public function showListByGroups(bool $filled = false): string
-    // {
-    //     $content = [];
+    public function showListByGroups(bool $filled = false): string
+    {
+        $content = [];
 
-    //     foreach ($this->getListByGroups($filled) as $groupId => $group) {
-    //         if (empty($group['ids'])) {
-    //             continue;
-    //         }
+        foreach ($this->getListByGroups($filled) as $groupId => $group) {
+            $list = [];
 
-    //         $list = [];
+            foreach ($group['attributes'] as $attribute) {
+                $list[] = $this->showAttribute($attribute);
+            }
 
-    //         foreach ($group['ids'] as $id) {
-    //             if ($onlyFilled && !$this->filled->has($id)) {
-    //                 continue;
-    //             }
+            if ($this->config['templates']['group'] ?? false) {
+                $content[] = view($this->config['templates']['group'], [
+                    'name' => $group['name'] ?? 'Без имени',
+                    'content' => implode('', $list)
+                ]);
 
-    //             $list[] = $this->showAttribute($id, $onlyFilled);
-    //         }
+                continue;
+            }
 
-    //         if (empty($list)) {
-    //             continue;
-    //         }
+            foreach ($list as $item) {
+                $content[] = $item;
+            }
+        }
 
-    //         if ($this->config['templates']['group'] ?? false) {
-    //             $content[] = view($this->config['templates']['group'], [
-    //                 'name' => $group['name'] ?? 'Без имени',
-    //                 'content' => implode('', $list)
-    //             ]);
-
-    //             continue;
-    //         }
-
-    //         foreach ($list as $item) {
-    //             $content[] = $item;
-    //         }
-    //     }
-
-    //     return $content ? implode('', $content) : '';
-    // }
+        return $content ? implode('', $content) : '';
+    }
 
     /**
      * Отрисовать аттрибут
@@ -163,9 +150,6 @@ class Render
      */
     public function showAttribute(Attribute $attribute): string
     {
-
-
-
         $template = $this->config['templates']['entities'][$attribute->entity];
         $content = view($template, [
             'attribute' => $attribute,

@@ -46,7 +46,7 @@ class Collection extends BaseCollection
 
     private function newStub()
     {
-        $class = config('attrubutes.stub', \MasterDmx\LaravelExtraAttributes\Entities\AttributeStub::class);
+        $class = config('attrubutes.stub', \MasterDmx\LaravelExtraAttributes\Entities\Stub::class);
         return new $class();
     }
 

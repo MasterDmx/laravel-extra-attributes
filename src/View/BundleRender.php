@@ -60,6 +60,8 @@ class BundleRender
         if (!isset($this->filled)) {
             $this->filled = new Bundle();
         }
+
+        $this->extra('name', $config['name']);
     }
 
     public function __toString()
@@ -75,7 +77,8 @@ class BundleRender
     public function ui(): string
     {
         return view($this->config['templates']['ui'], [
-            'render' => $this
+            'render' => $this,
+            'extra' => $this->extra,
         ]);
     }
 
