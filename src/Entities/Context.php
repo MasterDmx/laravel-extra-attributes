@@ -149,7 +149,7 @@ abstract class Context
      *
      * @return array
      */
-    protected function entities(): array
+    protected function entities(): ?array
     {
         return [];
     }

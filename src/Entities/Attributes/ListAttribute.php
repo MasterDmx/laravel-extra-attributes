@@ -3,12 +3,15 @@
 namespace MasterDmx\LaravelExtraAttributes\Entities\Attributes;
 
 use MasterDmx\LaravelExtraAttributes\Entities\Attribute;
+use MasterDmx\LaravelHelpers\ArrayHelper;
 
+/**
+ * Список
+ * @version 1.0.1 2020-11-17
+ */
 class ListAttribute extends Attribute
 {
     const KEY_VALUES = 'values';
-    const KEY_VALUES_MARKS = 'values_marks';
-    const KEY_MARK = 'mark';
 
     /**
      * Значения
@@ -24,20 +27,6 @@ class ListAttribute extends Attribute
      */
     public $handbook;
 
-    /**
-     * Пометка
-     *
-     * @var string|null
-     */
-    public $mark;
-
-    /**
-     * Пометки для значений
-     *
-     * @var array|null
-     */
-    public $valueMarks;
-
     // --------------------------------------------------------
     // Functional
     // --------------------------------------------------------
@@ -48,14 +37,67 @@ class ListAttribute extends Attribute
      * @param [type] $item
      * @return boolean
      */
-    public function has($item)
+    public function has($item): bool
     {
         return in_array($item, $this->values);
+    }
+
+    /**
+     * Проверить наличие значения по ключу
+     *
+     * @param [type] $item
+     * @return boolean
+     */
+    public function isEmpty(): bool
+    {
+        return empty($this->values);
+    }
+
+    // --------------------------------------------------------
+    // View
+    // --------------------------------------------------------
+
+    /**
+     * Вывести выделенные значения по паттерну
+     */
+    public function show(string $pattern)
+    {
+        $content = '';
+
+        foreach ($this->values ?? [] as $key) {
+            if (isset($this->handbook[$key])) {
+                $content .= $this->replacePatternTags($pattern, $this->handbook[$key]);
+            }
+        }
+
+        return $content;
+    }
+
+    /**
+     * Замена тегов в паттернах
+     */
+    private function replacePatternTags(string $str, string $value)
+    {
+        if (!(strpos($str, '{value}') === false)) {
+            $str = str_replace('{value}', $value, $str);
+        }
+
+        return $str;
     }
 
     // --------------------------------------------------------
     // Base
     // --------------------------------------------------------
+
+    /**
+     * Сравнение с другим полем
+     *
+     * @return bool
+     */
+    public function compare($attribute): bool
+    {
+        return ArrayHelper::compare($this->values, $attribute->values);
+    }
 
     /**
      * Инициализация прототипа
@@ -78,8 +120,6 @@ class ListAttribute extends Attribute
     public function import($data): void
     {
         $this->values = $data[static::KEY_VALUES] ?? [];
-        $this->mark = $data[static::KEY_MARK] ?? null;
-        $this->valueMarks = $data[static::KEY_VALUES_MARKS] ?? null;
     }
 
     /**
@@ -89,11 +129,7 @@ class ListAttribute extends Attribute
      */
     public function export()
     {
-        return array_filter([
-            static::KEY_VALUES => $this->values,
-            static::KEY_VALUES_MARKS => $this->valueMarks,
-            static::KEY_MARK => $this->mark,
-        ], function ($el) {
+        return array_filter([static::KEY_VALUES => $this->values], function ($el) {
             return isset($el);
         });
     }

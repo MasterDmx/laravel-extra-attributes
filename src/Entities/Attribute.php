@@ -2,10 +2,15 @@
 
 namespace MasterDmx\LaravelExtraAttributes\Entities;
 
-use PHPUnit\Framework\Constraint\Attribute as ConstraintAttribute;
-
+/**
+ * Аттрибут
+ *
+ * @version 1.0.1 2020-11-22
+ */
 abstract class Attribute
 {
+    const DATA_KEY_STRICT_COMPARISON = 'strict';
+
     /**
      * ID
      *
@@ -34,6 +39,20 @@ abstract class Attribute
      */
     public $presets;
 
+    /**
+     * Важный аттрибут (режим строго сравнения)
+     *
+     * @var bool
+     */
+    public $strict = false;
+
+    /**
+     * Доступен для сравнения
+     *
+     * @var bool
+     */
+    public $сompareAvailable;
+
     public function __construct(array $handbook)
     {
         $this->init($handbook);
@@ -51,6 +70,7 @@ abstract class Attribute
         $this->name = $properties['name'];
         $this->entity = $properties['entity'];
         $this->presets = $properties['presets'] ?? null;
+        $this->сompareAvailable = (bool)($properties['compare'] ?? true);
     }
 
     /**
@@ -59,14 +79,22 @@ abstract class Attribute
      * @param array|int|string|double|float $data
      * @return void
      */
-    abstract public function import($data);
+    public function import($data): void
+    {
+        if (isset($data[static::DATA_KEY_STRICT_COMPARISON])) {
+            $this->strict = (bool)$data[static::DATA_KEY_STRICT_COMPARISON];
+        }
+    }
 
     /**
      * Экспорт значений
      *
      * @return array|int|string|double|float
      */
-    abstract public function export();
+    public function export()
+    {
+        return ($this->strict ?? null) ? [static::DATA_KEY_STRICT_COMPARISON => true] : [];
+    }
 
     /**
      * Проверить наличие пресета
@@ -102,6 +130,26 @@ abstract class Attribute
     public function checkForEmpty(): bool
     {
         return true;
+    }
+
+    /**
+     * Имеет значения (влияет на пропуск значений при записи в бд)
+     *
+     * @return boolean
+     */
+    public function hasValues(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Имеет значения для сравнения
+     *
+     * @return boolean
+     */
+    public function hasValuesForComparison(): bool
+    {
+        return $this->hasValues();
     }
 
     /**

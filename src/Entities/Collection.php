@@ -3,7 +3,12 @@
 namespace MasterDmx\LaravelExtraAttributes\Entities;
 
 use Illuminate\Support\Collection as BaseCollection;
+use MasterDmx\LaravelExtraAttributes\Services\Comparator;
 
+/**
+ * Коллекция аттрибутов
+ * @version 1.0.0 2020-11-17
+ */
 class Collection extends BaseCollection
 {
     /**
@@ -206,7 +211,7 @@ class Collection extends BaseCollection
     }
 
     /**
-     * Сравнить
+     * Очистить
      *
      * @return self
      */
@@ -216,22 +221,30 @@ class Collection extends BaseCollection
         return $this;
     }
 
-    /**
-     * Сравнить с другой коллекцией
-     *
-     * @param [type] $attributes
-     * @return void
-     */
-    public function compare($attributes)
-    {
-        foreach ($attributes as $key => $item) {
-            if ($this->has($key)) {
-                if (!$this->get($key)->compare($item)) {
-                    return false;
-                }
-            }
-        }
+    // -----------------------------------------------------------------
+    // Сравнение
+    // -----------------------------------------------------------------
 
-        return true;
+    /**
+     * Сравнить аттрибуты
+     *
+     * @param self|Bundle $entity
+     * @param boolean|null $strictly Строгое сравнение (null - пользовательский выбор)
+     * @param boolean $reverse Смена мест
+     * @return boolean
+     */
+    public function compare($entity, ?bool $strictly = null, bool $reverse = false): bool
+    {
+        return $reverse ? $this->getComparator()->compare($entity, $this, $strictly) : $this->getComparator()->compare($this, $entity, $strictly);
+    }
+
+    /**
+     * Получить компаратор
+     *
+     * @return Comparator
+     */
+    public function getComparator(): Comparator
+    {
+        return new Comparator();
     }
 }
