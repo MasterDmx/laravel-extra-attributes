@@ -1,8 +1,8 @@
 <?php
 
-namespace MasterDmx\LaravelExtraAttributes\Entities;
+namespace MasterDmx\LaravelExtraAttributes;
 
-use Illuminate\Support\Collection as LaravelCollection;
+use Illuminate\Support\Collection;
 use MasterDmx\LaravelExtraAttributes\Services\Comparator;
 
 /**
@@ -10,11 +10,11 @@ use MasterDmx\LaravelExtraAttributes\Services\Comparator;
  *
  * @version 1.0.1 2020-11-18
  */
-class Bundle extends LaravelCollection
+class AttributeBundle extends Collection
 {
-    public function getBlock($number): Collection
+    public function getBlock($number): AttributeCollection
     {
-        return $this->hasBlock($number) ? $this->get($number) : new Collection();
+        return $this->hasBlock($number) ? $this->get($number) : new AttributeCollection();
     }
 
     /**
@@ -44,6 +44,27 @@ class Bundle extends LaravelCollection
         return $exported;
     }
 
+    /**
+     * Применить пресет
+     *
+     * @param string $preset
+     * @return self
+     */
+    public function applyPreset(string $preset): self
+    {
+        $result = [];
+
+        foreach ($this as $collection) {
+            $collection = $collection->applyPreset($preset);
+
+            if (!$collection->isEmpty()) {
+                $result[] = $collection;
+            }
+        }
+
+        return new static($result);
+    }
+
     // -----------------------------------------------------------------
     // Сравнение
     // -----------------------------------------------------------------
@@ -51,7 +72,7 @@ class Bundle extends LaravelCollection
     /**
      * Сравнить аттрибуты
      *
-     * @param self|Collection $entity
+     * @param self|AttributeCollection $entity
      * @param boolean|null $strictly Строгое сравнение (null - пользовательский выбор)
      * @param boolean $reverse Смена мест
      * @return boolean

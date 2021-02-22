@@ -1,46 +1,28 @@
 <?php
 
-namespace MasterDmx\LaravelExtraAttributes\View;
+namespace MasterDmx\LaravelExtraAttributes;
 
-use MasterDmx\LaravelExtraAttributes\Entities\Attribute;
-use MasterDmx\LaravelExtraAttributes\Entities\Collection;
-
-class Render
+class AttributeViewCollection
 {
     /**
      * Конфиг
-     *
-     * @var array
      */
-    private $config;
+    private array $config;
 
     /**
      * Коллекция всех аттрибутов контекста
-     *
-     * @var \MasterDmx\LaravelExtraAttributes\Entities\Collection|null
      */
-    private $collection;
+    private AttributeCollection|null $collection;
 
     /**
      * Коллекция заполненных аттрибутов
-     *
-     * @var \MasterDmx\LaravelExtraAttributes\Entities\Collection|null
      */
-    private $filled;
-
-    /**
-     * Инициализатор ДО процесса инициализации
-     *
-     * @var \MasterDmx\LaravelExtraAttributes\View\initializer|null
-     */
-    private $initializer;
+    private AttributeCollection|null $filled;
 
     /**
      * Параметры
-     *
-     * @var array
      */
-    private $options = [];
+    private array $options = [];
 
     /**
      * Доп. данные, передающиеся в шаблоны
@@ -56,19 +38,30 @@ class Render
      */
     private $saturated = false;
 
-    public function __construct(array $config, Collection $collection = null, Collection $filled = null, array $extra = null, Initializer $initializer = null)
+    /**
+     * Режим работы бандла
+     *
+     * @var boolean
+     */
+    private $bundleMode = false;
+
+    /**
+     * Номер блока бандла
+     *
+     * @var boolean
+     */
+    private $bundleBlock;
+
+    public function __construct(array $config, AttributeCollection $collection = null, AttributeCollection $filled = null, array $extra = null)
     {
         $this->config = $config;
         $this->collection = $collection;
         $this->filled = $filled;
         $this->extra = $extra;
-        $this->initializer = $initializer;
 
         if (!isset($this->filled)) {
-            $this->filled = new Collection();
+            $this->filled = new AttributeCollection();
         }
-
-        $this->extra('name', $config['name']);
     }
 
     public function __toString()
@@ -87,10 +80,29 @@ class Render
      */
     public function show(): string
     {
-        return view($this->config['templates']['ui'], [
-            'render' => $this,
-            'extra' => $this->extra,
-        ]);
+        if (isset($this->config['template'])) {
+            return (string)view($this->config['templates']['ui'], [
+                'render' => $this,
+                'extra' => $this->extra,
+            ]);
+        }
+
+
+        if ($this->config['mode'] === 'by_groups') {
+            return $this->showListByGroups();
+        }
+
+        return $this->showList();
+    }
+
+    /**
+     * Отрисовать аттрибуты
+     *
+     * @return string
+     */
+    public function showAttributes(): string
+    {
+        return $this->showList();
     }
 
     /**
@@ -125,8 +137,8 @@ class Render
                 $list[] = $this->showAttribute($attribute);
             }
 
-            if ($this->config['templates']['group'] ?? false) {
-                $content[] = view($this->config['templates']['group'], [
+            if (!empty($this->config['template_group'])) {
+                $content[] = (string)view($this->config['template_group'], [
                     'name' => $group['name'] ?? 'Без имени',
                     'content' => implode('', $list)
                 ]);
@@ -145,25 +157,29 @@ class Render
     /**
      * Отрисовать аттрибут
      *
-     * @param string|int|float $id
+     * @param Attribute $attribute
      * @return string
      */
     public function showAttribute(Attribute $attribute): string
     {
-        $template = $this->config['templates']['entities'][$attribute->entity];
-        $content = view($template, [
-            'attribute' => $attribute,
-            'class' => get_class($attribute),
-            'name' => $this->config['name'] ?? 'undefined',
-            'extra' => $this->extra,
-        ]);
+        $alias = $aliasName = $this->config['alias'];
 
-        if (isset($this->config['templates']['attribute'])) {
-            return view($this->config['templates']['attribute'], [
-                'content' => $content,
-                'attribute' => $attribute,
-                'extra' => $this->extra,
-            ]);
+        if ($this->bundleMode) {
+            $alias .= '[' . $this->bundleBlock . ']';
+        }
+
+        $params = [
+            'attribute' => $attribute,
+            'alias'     => $alias,
+            'aliasName' => $aliasName,
+            'block'     => $this->bundleBlock,
+            'extra'     => $this->extra,
+        ];
+
+        $content = (string)view($this->config['template_items_prefix'] . $attribute->viewTemplate, $params);
+
+        if (isset($this->config['template_item'])) {
+            $content = (string)view($this->config['template_item'], $params + ['content' => $content]);
         }
 
         return $content;
@@ -249,36 +265,23 @@ class Render
      *
      * @param string|int $id
      * @param boolean $filled
-     * @return Attribute
      */
     public function getAttribute($id, bool $filled = false): Attribute
     {
         return $this->getCollection($filled)->get($id);
     }
 
-
-
     // ------------------------------------------------------------------
     // Other
     // ------------------------------------------------------------------
 
     /**
-     * Инициализировать еще один один UI
-     *
-     * @return void
-     */
-    public function view()
-    {
-        # code...
-    }
-
-    /**
      * Получить коллекцию
      *
      * @param boolean $filled
-     * @return Collection
+     * @return AttributeCollection
      */
-    public function getCollection(bool $filled = false): Collection
+    public function getCollection(bool $filled = false): AttributeCollection
     {
         if ($filled) {
             return $this->filled;
@@ -303,6 +306,20 @@ class Render
     public function clearOptions(): self
     {
         $this->options = [];
+        return $this;
+    }
+
+    /**
+     * Включить режим бандла
+     *
+     * @param integer $block
+     * @return static
+     */
+    public function enableBundleMode(int $block)
+    {
+        $this->bundleMode = true;
+        $this->bundleBlock = $block;
+
         return $this;
     }
 

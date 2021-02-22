@@ -1,6 +1,8 @@
 <?php
 
-namespace MasterDmx\LaravelExtraAttributes\Entities;
+namespace MasterDmx\LaravelExtraAttributes;
+
+use Illuminate\Support\Str;
 
 /**
  * Аттрибут
@@ -19,18 +21,18 @@ abstract class Attribute
     public $id;
 
     /**
+     * View шаблон
+     *
+     * @var string
+     */
+    public $viewTemplate;
+
+    /**
      * Название
      *
      * @var string
      */
     public $name;
-
-    /**
-     * Идентификатор сущности
-     *
-     * @var string
-     */
-    public $entity;
 
     /**
      * Пресеты
@@ -66,10 +68,10 @@ abstract class Attribute
      */
     protected function init(array $properties)
     {
-        $this->id = $properties['id'];
-        $this->name = $properties['name'];
-        $this->entity = $properties['entity'];
-        $this->presets = $properties['presets'] ?? null;
+        $this->id               = $properties['id'];
+        $this->viewTemplate     = $properties['view'] ?? $this->getViewTemplateByHandlerName();
+        $this->name             = $properties['name'];
+        $this->presets          = $properties['presets'] ?? null;
         $this->сompareAvailable = (bool)($properties['compare'] ?? true);
     }
 
@@ -166,7 +168,7 @@ abstract class Attribute
      * Изменить данные по пресету
      *
      * @param $data
-     * @return self
+     * @return void
      */
     protected function changeUnderPreset(array $data): void
     {
@@ -175,5 +177,19 @@ abstract class Attribute
         }
     }
 
+    /**
+     * Получить название view шаблона по названию класса-обработчика
+     *
+     * @return string
+     */
+    protected function getViewTemplateByHandlerName(): string
+    {
+        $result = Str::snake(class_basename($this));
 
+        if (substr($result, -10) === '_attribute') {
+            $result = substr($result, 0, -10);
+        }
+
+        return $result;
+    }
 }

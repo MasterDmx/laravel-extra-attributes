@@ -1,16 +1,24 @@
 <?php
 
-namespace MasterDmx\LaravelExtraAttributes\Entities;
+namespace MasterDmx\LaravelExtraAttributes;
 
-use Illuminate\Support\Collection as BaseCollection;
+use Illuminate\Support\Collection;
+use MasterDmx\LaravelExtraAttributes\Contracts\Validateable;
 use MasterDmx\LaravelExtraAttributes\Services\Comparator;
 
 /**
  * Коллекция аттрибутов
  * @version 1.0.0 2020-11-17
  */
-class Collection extends BaseCollection
+class AttributeCollection extends Collection
 {
+    /**
+     * Алиас текущего контекста
+     *
+     * @var string|null
+     */
+    // protected $contextAlias;
+
     /**
      * Возвращает оригинальный массив
      *
@@ -76,16 +84,34 @@ class Collection extends BaseCollection
     /**
      * Импорт
      *
-     * @param mixed $data Данные
+     * @param array $data Данные
+     * @param array $validate Провалидировать сырые данные
+     * @param array $intersect Удалить пустые
      * @return self
      */
-    public function import($data): self
+    public function import(array $data, bool $validate = false, bool $intersect = true): self
     {
-        $this->each(function ($attribute) use ($data) {
+        foreach ($this as $key => $attribute) {
             if (isset($data[$attribute->id])) {
-                $attribute->import($data[$attribute->id]);
+                if ($validate && is_a($attribute, Validateable::class)) {
+                    if (!$attribute->isValidRaw($data[$attribute->id])) {
+                        $this->forget($key);
+                        continue;
+                    }
+
+                    $attribute->importRaw($data[$attribute->id]);
+
+                    if (!$attribute->isValid()) {
+                        $this->forget($key);
+                        continue;
+                    }
+                } else {
+                    $attribute->import($data[$attribute->id]);
+                }
+            } elseif ($intersect) {
+                $this->forget($key);
             }
-        });
+        }
 
         return $this;
     }
@@ -228,9 +254,9 @@ class Collection extends BaseCollection
     /**
      * Сравнить аттрибуты
      *
-     * @param self|Bundle $entity
+     * @param self|AttributeBundle $entity
      * @param boolean|null $strictly Строгое сравнение (null - пользовательский выбор)
-     * @param boolean $reverse Смена мест
+     * @param boolean|null $reverse Смена мест
      * @return boolean
      */
     public function compare($entity, ?bool $strictly = null, bool $reverse = false): bool
@@ -247,4 +273,21 @@ class Collection extends BaseCollection
     {
         return new Comparator();
     }
+
+    // ------------------------------------------------------------------
+    // База
+    // ------------------------------------------------------------------
+
+    /**
+     * Установить алиас контекста
+     *
+     * @param string $alias
+     * @return static
+     */
+    // public function defineContextAlias(string $alias)
+    // {
+    //     $this->contextAlias = $alias;
+
+    //     return $this;
+    // }
 }

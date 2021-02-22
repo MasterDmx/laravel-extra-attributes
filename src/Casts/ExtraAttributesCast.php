@@ -4,36 +4,39 @@ namespace MasterDmx\LaravelExtraAttributes\Casts;
 
 use ErrorException;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
-use MasterDmx\LaravelExtraAttributes\ExtraAttributesManager;
+use MasterDmx\LaravelExtraAttributes\AttributeBundle;
+use MasterDmx\LaravelExtraAttributes\AttributeCollection;
+use MasterDmx\LaravelExtraAttributes\AttributeManager;
 
-abstract class ExtraAttributesCast implements CastsAttributes
+final class ExtraAttributesCast implements CastsAttributes
 {
     /**
-     * Менеджер
+     * Контекст
      *
-     * @var ExtraAttributesManager
+     * @var Context
      */
-    protected $manager;
+    protected $context;
 
-    /**
-     * Алиас контекста
-     *
-     * @var string|null
-     */
-    protected $alias;
-
-    public function __construct(string $alias = null)
+    public function __construct(string $contextClass)
     {
-        $this->alias = $alias;
-        $this->manager = app(ExtraAttributesManager::class);
+        $this->context = app(AttributeManager::class)->getContext($contextClass);
     }
 
-    abstract public function get($model, $key, $value, $attributes);
-
-    abstract public function set($model, $key, $value, $attributes);
-
-    protected function getAliasByModel($model)
+    public function get($model, $key, $value, $attributes)
     {
-        return isset($this->alias) ? $this->alias : get_class($model);
+        return $this->context->isBundle ? $this->context->newBundle(json_decode($value, true), false) : $this->context->newCollection(json_decode($value, true), false);
+    }
+
+    public function set($model, $key, $value, $attributes)
+    {
+        if (is_a($value, AttributeCollection::class) || is_a($value, AttributeBundle::class)) {
+            return json_encode($value->export());
+        }
+
+        if (is_array($value)) {
+            return json_encode($this->context->isBundle ? $this->context->newBundle($value, false)->export() : $this->context->newCollection($value, false)->export());
+        }
+
+        throw new ErrorException('Undefined value type');
     }
 }
